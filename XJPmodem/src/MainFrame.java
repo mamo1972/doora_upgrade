@@ -24,7 +24,11 @@ import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.ChannelSftp.LsEntry;
 import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
+import com.jcraft.jsch.SftpException;
+import java.io.File;
+import org.apache.commons.io.FileUtils;
 /**
  *
  * @author Electro
@@ -47,16 +51,22 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
       static boolean carriage = false;
       static boolean connected = false;
       static boolean found = false;
+      static String userprofile = System.getenv("USERPROFILE");
+      
+      static DownloadFile lf = new DownloadFile();
       
       private static final byte SOH  = 0x01;
       private static final byte EOT  = 0x04;
       private static final byte ACK  = 0x06;
       private static final byte NACK = 0x15;
+      private static final byte ESC  = 0x1B;
+      
+      private static String furl = "http://192.168.62.251/home/pi/doora_upgrade";
       
     /**
      * Creates new form MainFrame
      */
-    public MainFrame() {         
+    public MainFrame() {              
         initComponents();
         Status.addKeyListener(this); 
         showProgressBar();       
@@ -209,25 +219,25 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
              if(port.isOpen()){
                connected = true;               
                Connect.setText("DISCONNECT");
-               System.out.println(port.getDescriptivePortName() + " -- Porta aperta con successo");
-               Status.setText(port.getSystemPortName() + "....Aperta con successo\r\n");
+   //            System.out.println(port.getDescriptivePortName() + " -- Porta aperta con successo");
+               Status.setText(port.getSystemPortName() + "....Aperta con successo");
                com.setForeground(new Color(0,153,0));              
                com.setText(port.getSystemPortName());
                //  System.out.println("4".getBytes());                
-                 Serial_EventBasedReading(port, this);                
+                 Serial_EventBasedReading(port, this, lf);                
                  
              }
              else{
-                 System.out.println(port.getDescriptivePortName() + " -- Fallita apertura porta");    
-                 Status.setText(port.getSystemPortName() + "....Fallita apertura\r\n");
+   //              System.out.println(port.getDescriptivePortName() + " -- Fallita apertura porta");    
+                 Status.setText(port.getSystemPortName() + "....Fallita apertura");
                  com.setForeground(Color.red);
                  com.setText(port.getSystemPortName());
              }
              //     if(port.isOpen()) port.closePort();
             }
             catch(ArrayIndexOutOfBoundsException a){
-                System.out.println("Nessuna porta seriale rilevata");
-                Status.setText(port.getSystemPortName() + "....Nessuna porta seriale rilevata\r\n");
+   //             System.out.println("Nessuna porta seriale rilevata");
+                Status.setText(port.getSystemPortName() + "....Nessuna porta seriale rilevata");
                 com.setForeground(Color.red);
                 com.setText(port.getSystemPortName());
             }
@@ -258,9 +268,9 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
         SerialPort [] AvailablePorts = SerialPort.getCommPorts();       
        // use the for loop to print the available serial ports
          for(SerialPort S : AvailablePorts){
-              System.out.println("\n  " + S.getSystemPortName()+ "-" + S.getDescriptivePortName());
+   //           System.out.println("\n  " + S.getSystemPortName()+ "-" + S.getDescriptivePortName());
             //  if("STM32".equals(S.getPortDescription().substring(0,5))){
-                  System.out.println(S.getPortDescription().substring(0,5));
+   //               System.out.println(S.getPortDescription().substring(0,5));
                 //  port = AvailablePorts[index];  
                   ComPort.addItem(S.getSystemPortName() + "-" + S.getDescriptivePortName());
                   found = true;
@@ -280,7 +290,7 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
     }
     
     private void setProgressValue(int value){
-        System.out.println(value);
+   //     System.out.println(value);
         Progress.setValue(value);
     }
     public void setJtext(String testo){
@@ -309,6 +319,34 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
     private void reqFocus(){
         Status.requestFocus();
     }
+    
+    public void preparaFile(){
+          MainFrame mf = new MainFrame();
+       // mn.addList();
+        String path = userprofile + "\\Desktop\\doora.bin";
+        boolean found = false;
+        int portIndex = 0;
+        int index = 0;      
+        OpenFileBin open = new OpenFileBin();
+        //byte[][]ofile = open.OpenFile("C:\\Users\\Electro\\Desktop\\DOORA1_UmtsMono_v00.03.04_868MHz.bin");
+        byte[][]ofile = open.OpenFile(path);
+        righe = ofile.length;
+        colonne = ofile[0].length;
+        int pp =0;  
+        int r = 0;
+       
+        
+        String[] ff = lf.Load();       
+         
+        UPD_FILE = ff[1].substring(0,25);
+        UPD_FILE = UPD_FILE.substring(17,25);
+        
+        furl = furl + "/" + ff[1].substring(0,25)+"_868MHz.bin";
+        
+        Packet p = new Packet(righe,colonne,ofile);
+        readyfile = p.createPacket(); 
+    }
+
          
     public static void main(String args[]) {
         /* Set the Nimbus look and feel */
@@ -333,42 +371,17 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
             java.util.logging.Logger.getLogger(MainFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
         //</editor-fold>
-        MainFrame mf = new MainFrame();
-       // mn.addList();
-        
-        boolean found = false;
-        int portIndex = 0;
-        int index = 0;      
-        OpenFileBin open = new OpenFileBin();
-        byte[][]ofile = open.OpenFile("C:\\Users\\Electro\\Desktop\\DOORA1_UmtsMono_v00.03.04_868MHz.bin");
-        righe = ofile.length;
-        colonne = ofile[0].length;
-        int pp =0;  
-        int r = 0;
-       
-        DownloadFile lf = new DownloadFile();
-        String[] ff = lf.Load();       
-         
-        UPD_FILE = ff[1].substring(0,25);
-        UPD_FILE = UPD_FILE.substring(17,25);
-        
-        Packet p = new Packet(righe,colonne,ofile);
-        readyfile = p.createPacket();       
-                
+    
         
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
                 new MainFrame().setVisible(true);
             }
-        });
-       
-       
-        
-     
+        });                  
         
     }
- private static void Serial_EventBasedReading(SerialPort activeport, MainFrame mf){             
+ private static void Serial_EventBasedReading(SerialPort activeport, MainFrame mf, DownloadFile lf){             
       activeport.addDataListener(new SerialPortDataListener(){
          @Override
          public int getListeningEvents(){return SerialPort.LISTENING_EVENT_DATA_RECEIVED;}
@@ -381,7 +394,7 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
              TimerTask task1 = new Helper1();
              int s=0;
              int p =0;
-             //String t;    
+             boolean dwnEnd = false;   
              
              if(activeport.isOpen() && connected == false) activeport.closePort();
              
@@ -390,39 +403,52 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
                for(int i=0; i<newdata.length; i++){               
                  dataBuffer += (char)newdata[i];                      
                }             
-               System.out.print(dataBuffer);              
+    //           System.out.print(dataBuffer);              
              try{        
-                 switch(Fase){
-                     case 0:
-                          if(dataBuffer.indexOf("DOORA") != -1){                             
+                 switch(Fase){                  
+                     case 1:
+                          if(dataBuffer.indexOf(">") != -1){   
                               STD_FILE = dataBuffer.substring(dataBuffer.indexOf("DOORA"), dataBuffer.indexOf("DOORA")+27);
                               STD_FILE = STD_FILE.substring(19,27);
-                          } 
-                          System.out.println(STD_FILE);
-                          System.out.println(UPD_FILE);
-                          if(STD_FILE.trim().equals(UPD_FILE.trim())){
-                              System.out.println("BAU");
-                              mf.setJtext("\r\nIl dispositivo è già aggiornato");
-                          }
-                          //Fase = 1;
-                     break;    
-                     case 1:
-                          if(dataBuffer.indexOf(">") != -1){                                  
+                                                    
+                        //  if(STD_FILE.trim().equals(UPD_FILE.trim())){
+                        //      System.out.println("BAU");
+                        //      mf.setJtext("\r\nIl dispositivo è già aggiornato");
+                        //  }
+                        //  else{
+                              mf.setJtext("\r\nInizio a scaricare il file");
+                              if(lf.DownLoad()){
+                                  mf.setJtext("\r\nFile scaricato correttamente");
+                                  
+                              }
+                              else{
+                                  mf.setJtext("\r\nFile non scaicato");
+                              }
+                              dataBuffer = "";
+                        //  }              
+                        
+                            mf.preparaFile();
+                        
                             //System.out.print("Inserire la password : ");                            
-                            mf.setJtext("Inserire la password: ");   
+                            mf.setJtext("\r\nInserire la password: ");   
                             mf.reqFocus();
                             mf.setCursor();
                             while(!carriage){
-                                System.out.println(mf.getJtext());
+                                System.out.print("");                           
                             }   
                             carriage = false;
                             String pwd = mf.getJtext().substring(mf.getJtext().indexOf(":")+2,(mf.getJtext().length()));
-                            System.out.println(pwd);                      
+                         //   System.out.println(pwd);                      
                             pwd = pwd+"\r\n";
                             Outputstream1.write(pwd.getBytes());                               
                             dataBuffer = "";
                             Fase = 2;
                           } 
+                          else{
+                   //         System.out.println("BAU");
+                            Outputstream1.write(ESC);                               
+                            dataBuffer = "";
+                          }
                                                                                
                       break;
                       case 2:       
@@ -434,15 +460,15 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
                           else if (dataBuffer.indexOf("ERROR") != -1){
                               mf.clearAll();
                               mf.setJtext("Password errata\r\n");
-                              System.out.println("Password errata!");                                
+                      //        System.out.println("Password errata!");                                
                               mf.setJtext("Inserire la password: ");  
                               mf.setCursor();
                               while(!carriage){
-                                System.out.println(mf.getJtext());
+                       //         System.out.println(mf.getJtext());
                               }     
                               carriage = false;
                               String pwd = mf.getJtext().substring(mf.getJtext().indexOf(":")+2,(mf.getJtext().length()));
-                              System.out.println(pwd);                      
+                     //         System.out.println(pwd);                      
                               pwd = pwd+"\r\n";
                               Outputstream1.write(pwd.getBytes());                                
                               dataBuffer = "";
@@ -452,16 +478,16 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
                       break;
                       case 3:
                           if(dataBuffer.indexOf("C") != -1){   
-                            System.out.println("...Received C");                            
+                    //        System.out.println("...Received C");                            
                             if(d < righe-1){ 
-                              System.out.print(d + " ");
+                   //           System.out.print(d + " ");
                               for (int y = 0; y < 133; y++){
                                  Outputstream1.write(readyfile[d][y]);                                                                               
                               }                                                            
                               dataBuffer = "";        
                               mf.setJtext("Caricamento ....");
                               testo = mf.getJtext();  
-                              timer.schedule(task, 60000L, 6000L); 
+                              timer.schedule(task, 60000L, 60000L); 
                               Fase = 5;                          
                             }
                             else{
@@ -485,7 +511,7 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
                                  mf.settText(tt);
                                  mf.setCursor();
                                  mf.setProgressValue((int)val+1);
-                                 System.out.println(String.format("%2.0f", val));                                 
+                 //                System.out.println(String.format("%2.0f", val));                                 
                                  for (int y = 0; y < 133; y++){
                                    Outputstream1.write(readyfile[d][y]);                                                                                                   
                                  }   
@@ -497,7 +523,7 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
                                    Outputstream1.write(EOT);  
                                    dataBuffer = "";
                                    end = true;
-                                   System.out.println("Sent EOT");
+                   //                System.out.println("Sent EOT");
                                  }
                                  else{
                                      if(dataBuffer.indexOf(">") != -1){
@@ -510,6 +536,22 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
                                          connected = false;
                                          Outputstream1.close();                                        
                                          activeport.closePort();
+                                         String userprofile = System.getProperty("user.home");
+                                         String[] cuserprofile = userprofile.split("\\\\");
+                                         userprofile = cuserprofile[0] + "\\" + cuserprofile[1] + "\\" + cuserprofile[2];
+                                         System.out.println(userprofile);
+                                         File file = new File(userprofile + "\\Desktop\\doora.bin");
+                                     //    File fileexe = new File(userprofile +"\\Downloads\\XJPmodem.exe");
+                                     //    File filebat = new File(userprofile +"\\Downloads\\upgrade.bat");
+                                     //    File dist = new File(userprofile +"\\Downloads\\dist");
+                                     //    FileUtils.deleteDirectory(dist);
+                                         if (!file.delete()){ // || !fileexe.delete() || filebat.delete()) {
+                                             mf.setJtext("\r\nFile non cancellato");
+                                             //                       System.out.println("Failed to delete the file.");
+                                         } else { 
+                                             mf.setJtext("\r\nFile cancellato");
+                                             //                       System.out.println("Deleted the file: " + file.getName());
+                                         }
                                          timer1.schedule(task1, 1000L, 1000L); 
                                          mf.setJtext("\r\nCaricamento completato");
                                          //System.exit(0);
@@ -519,10 +561,10 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
                               }      
                           }
                           else if(dataBuffer.indexOf(NACK) != -1){            //NACK    
-                                System.out.println("...NACK received");
+             //                   System.out.println("...NACK received");
                                  p++;
                                  if(p >= 10){
-                                   System.out.println("ERRORE DI COMUNICAZIONE");
+             //                      System.out.println("ERRORE DI COMUNICAZIONE");
                                    mf.setJtext("Errore di comunicazione");                                   
                                    p=0;
                                    Fase = 1000;
@@ -535,8 +577,8 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
                                  }
                           }                          
                           else if (dataBuffer.indexOf("ERROR") != -1){
-                                System.out.println("...Received ERROR");                                                              
-                                System.out.println("Errore di comunicazione");
+           //                     System.out.println("...Received ERROR");                                                              
+           //                     System.out.println("Errore di comunicazione");
                                 mf.setJtext("Errore di comunicazione");
                                 Outputstream1.close();
                                 activeport.closePort();
@@ -545,7 +587,7 @@ public class MainFrame extends javax.swing.JFrame implements KeyListener{
                                 
                           
                           }
-                          else System.out.println("....Received  "+ dataBuffer+" for ACK");
+           //               else System.out.println("....Received  "+ dataBuffer+" for ACK");
                                                                        
                       break;
                       case 1000:                              
@@ -585,7 +627,7 @@ class Helper extends TimerTask{
     MainFrame mm = new MainFrame();
             
    public void run() {
-        System.out.println("Problemi di comunicazione");     
+    //    System.out.println("Problemi di comunicazione");     
         JOptionPane.showMessageDialog(mm,"Problemi di comunicazione");
         try {
             TimeUnit.MILLISECONDS.sleep(500);
